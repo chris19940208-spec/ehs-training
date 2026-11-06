@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { LEVELS, START } from './levels.js';
+import { SCORE_ENDPOINT } from './config.js';
 
 /* ============================================================
    基本工具
@@ -21,10 +22,27 @@ const EYE = 1.6;
    進度（存在瀏覽器）
    ============================================================ */
 const KEY = 'dnn-safety-quest-v1';
-const fresh = () => ({ name: '', idx: 0, scores: {}, pos: null });
+const fresh = () => ({ name: '', empId: '', idx: 0, scores: {}, pos: null, pending: null });
 let S = fresh();
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(fresh(), JSON.parse(raw)); } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+/* ---------- 成績回傳（Google 試算表） ---------- */
+async function sendPending() {
+  if (!SCORE_ENDPOINT || !S.pending) return 'off';
+  try {
+    await fetch(SCORE_ENDPOINT, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(S.pending) });
+    S.pending = null; save(); return 'sent';
+  } catch (e) { return 'queued'; }               // 離線時留著，下次開啟再送
+}
+function queueResult() {
+  if (!SCORE_ENDPOINT) return;
+  const stages = {}; for (const lv of LEVELS) if (S.scores[lv.id]) stages[lv.id] = S.scores[lv.id].score;
+  const d = new Date(), off = -d.getTimezoneOffset(), sg = off >= 0 ? '+' : '-';
+  const local = new Date(d.getTime() + off * 60000).toISOString().slice(0, 19) + sg + pad2(Math.floor(Math.abs(off) / 60)) + ':' + pad2(Math.abs(off) % 60);
+  S.pending = { name: S.name, empId: S.empId, total: totalScore(), max: totalMax(),
+    stars: Object.values(S.scores).reduce((a, s) => a + s.stars, 0), stages, device: touch ? '手機' : '電腦', finishedAt: local };
+  save();
+}
 const hasProgress = () => S.idx > 0 || Object.keys(S.scores).length > 0;
 const totalScore = () => Object.values(S.scores).reduce((a, s) => a + s.score, 0);
 const maxOf = lv => lv.tasks.length * 100;
@@ -629,7 +647,11 @@ function stageResult() {
   if (!prev || score > prev.score) S.scores[lv.id] = { score, max, stars };
   const firstClear = S.idx === LEVELS.indexOf(lv);
   if (firstClear) S.idx++;
+  if (lv.final) queueResult();
   save(); renderPanel();
+  if (lv.final && SCORE_ENDPOINT) sendPending().then(r => {
+    const el = $('#sendState'); if (el) el.textContent = r === 'sent' ? '成績已回傳公司訓練紀錄。' : '目前沒有網路，成績會在下次開啟遊戲時自動回傳。';
+  });
   const best = S.scores[lv.id];
   const next = LEVELS[S.idx];
   dlg.innerHTML = `<div class="eyebrow">Stage ${pad2(lv.id)} Clear</div><h2 id="dlgTitle">${esc(lv.name)}　過關！</h2>
@@ -637,6 +659,7 @@ function stageResult() {
     <div class="result"><div><b>${score}</b><span>本關得分</span></div><div><b>${correct}/${lv.tasks.length}</b><span>答對題數</span></div><div><b>${totalScore()}</b><span>累計總分</span></div></div>
     ${prev && score <= prev.score ? `<p class="small">最佳紀錄維持 ${best.score} 分。</p>` : ''}
     <p>${lv.final ? '恭喜完成全部 9 關！' : next ? `下一站：「${esc(next.station)}」的「${esc(next.name)}」。` : ''}</p>
+    ${lv.final && SCORE_ENDPOINT ? '<p class="small" id="sendState" role="status">正在回傳成績…</p>' : ''}
     <div class="row">${lv.final ? '<button class="btn primary" id="cert" data-focus>領取結業證明</button>' : '<button class="btn primary" id="cont" data-focus>前往下一站</button>'}<button class="btn" id="stay">留在這裡</button></div>`;
   run = null;
   if (lv.final) $('#cert').onclick = showCert;
@@ -718,14 +741,18 @@ function showStart(ready) {
   openDialog(`<div class="eyebrow" style="color:var(--accent)">DNN 3F Showroom · Safety Quest</div>
     <h2 id="dlgTitle">安全衛生闖關</h2>
     <p>在 3F 展示間裡走一圈，跟著藍色光圈走到 9 個站點，闖過法規、找危害、消防、急救等關卡。最後通過結業測驗，就能領取結業證明。</p>
-    ${ready ? `<div class="field"><label for="nm">你的名字（會印在結業證明上）</label><input id="nm" maxlength="20" value="${esc(S.name)}" placeholder="例如：王小明"></div>
+    ${ready ? `<div class="field"><label for="nm">你的名字（${SCORE_ENDPOINT ? '必填，' : ''}會印在結業證明上）</label><input id="nm" maxlength="20" value="${esc(S.name)}" placeholder="例如：王小明"></div>
+    ${SCORE_ENDPOINT ? `<div class="field"><label for="emp">工號（選填）</label><input id="emp" maxlength="20" value="${esc(S.empId)}" placeholder="例如：DTW0001" autocapitalize="characters"></div>
+    <p class="small">通過結業測驗後，名字、工號與各關分數會回傳給公司做訓練紀錄。</p>` : ''}
     ${helpHtml()}
     <div class="row">${cont ? `<button class="btn primary" id="cont" data-focus>繼續闖關（第 ${Math.min(S.idx + 1, 9)} 關）</button><button class="btn" id="new">從頭開始</button>` : '<button class="btn primary" id="new" data-focus>開始闖關</button>'}</div>`
       : `<div class="load"><div class="meter"><i id="bar"></i></div><div class="msg" id="loadMsg">正在載入展示間模型…</div></div>`}`);
   if (!ready) return;
   const begin = reset => {
-    const nm = $('#nm').value.trim();
-    if (reset) { const keepName = nm; S = fresh(); S.name = keepName; } else S.name = nm;
+    const nm = $('#nm').value.trim(), emp = $('#emp') ? $('#emp').value.trim().toUpperCase() : S.empId;
+    if (SCORE_ENDPOINT && !nm) { $('#nm').focus(); $('#nm').setAttribute('aria-invalid', 'true'); $('#nm').placeholder = '請先輸入名字'; return; }
+    if (reset) { S = fresh(); }
+    S.name = nm; S.empId = emp;
     save(); $('#ui').hidden = false; resize(); placeAtStart(); renderPanel(); closeDialog();
     setHint(defaultHint()); canvas.focus({ preventScroll: true });
   };
@@ -751,7 +778,7 @@ $('#btnReset').onclick = () => {
   openDialog(`<h2 id="dlgTitle">重新開始？</h2><p>會清除目前的分數與進度，從第 1 關重新開始。</p>
     <div class="row"><button class="btn primary" id="yes">重新開始</button><button class="btn" id="no" data-focus>取消</button></div>`);
   $('#no').onclick = closeDialog;
-  $('#yes').onclick = () => { const n = S.name; S = fresh(); S.name = n; hunt = null; run = null; for (const k in foundTags) foundTags[k].on = false; save(); placeAtStart(); renderPanel(); closeDialog(); setHint(defaultHint()); };
+  $('#yes').onclick = () => { const n = S.name, e = S.empId; S = fresh(); S.name = n; S.empId = e; hunt = null; run = null; for (const k in foundTags) foundTags[k].on = false; save(); placeAtStart(); renderPanel(); closeDialog(); setHint(defaultHint()); };
 };
 
 /* ============================================================
@@ -795,6 +822,7 @@ function onModel(g) {
   buildHazards();
   renderPanel();
   showStart(true);
+  sendPending();
 }
 (async () => {
   try {

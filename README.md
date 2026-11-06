@@ -47,6 +47,8 @@
 index.html              頁面與樣式
 src/main.js             3D 場景、移動、關卡流程、結業證明
 src/levels.js           站點、關卡與題庫
+src/config.js           成績回傳網址
+apps-script/Code.gs     接收成績的 Google Apps Script
 assets/showroom.glb     3F 展示間模型
 assets/dnn-logo.webp    DNN 標誌
 vendor/three/           three.js 0.160.0（MIT License）
@@ -58,6 +60,16 @@ vendor/three/           three.js 0.160.0（MIT License）
 python3 -m http.server 8000
 # 開啟 http://localhost:8000
 ```
+
+## 成績回傳（Google 試算表）
+
+通過結業測驗後，遊戲會把名字、工號、總分、星數與各關分數送到 Google 試算表。
+
+1. 開啟成績試算表，選「擴充功能 → Apps Script」，刪掉預設內容，貼上 `apps-script/Code.gs`，儲存。
+2. 「部署 → 新增部署作業」，類型選「網頁應用程式」，執行身分「我」、誰可以存取「所有人」，部署並完成授權。
+3. 把部署網址填進 `src/config.js` 的 `SCORE_ENDPOINT`。
+
+`SCORE_ENDPOINT` 留空時不回傳成績，遊戲照常可玩。設定後開始畫面的名字改為必填；離線時成績會暫存在瀏覽器，下次開啟再送。
 
 ## 部署
 

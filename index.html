@@ -177,6 +177,7 @@ kbd{font:700 12px/1 var(--mono);border:1px solid currentColor;border-radius:5px;
 .field label{font:500 15px/1.4 var(--sans);color:var(--muted)}
 .field input{font:500 17px/1.4 var(--sans);padding:12px 14px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--fg)}
 .field input:focus{outline:none;border-color:var(--accent)}
+.field input[aria-invalid="true"]{border-color:var(--bad)}
 .keys{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 14px;font:400 15px/1.5 var(--sans);color:var(--muted);align-items:center}
 .keys span:nth-child(odd){font:700 13px/1 var(--mono);color:var(--fg);white-space:nowrap}
 .load{display:flex;flex-direction:column;gap:8px}
