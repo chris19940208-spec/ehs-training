@@ -678,14 +678,28 @@ async function drawCert() {
   x.fillStyle = '#8c96b8'; x.font = `400 21px ${sans}`; x.fillText('本證明為課程輔助活動紀錄，不取代法定教育訓練的簽到與訓練紀錄。', W / 2, 1000);
   return c;
 }
+let certUrl = null;
 async function showCert() {
   openDialog(`<div class="eyebrow">Certificate</div><h2 id="dlgTitle">闖關結業證明</h2><p class="small">正在產生證明…</p>`);
-  const c = await drawCert(), url = c.toDataURL('image/png');
+  const c = await drawCert();
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  const d = new Date(), fname = `DNN_Safety_Quest_Certificate_${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}.png`;
+  const file = new File([blob], fname, { type: 'image/png' });
+  if (certUrl) URL.revokeObjectURL(certUrl);
+  certUrl = URL.createObjectURL(blob);
+  // 手機（尤其 iPhone 的 App 內瀏覽器）不支援網頁直接下載，改用系統分享選單存圖
+  const share = touch && !!(navigator.canShare && navigator.canShare({ files: [file] }));
   dlg.innerHTML = `<div class="eyebrow">Certificate</div><h2 id="dlgTitle">恭喜過關！</h2>
-    <div class="cert"><img src="${url}" alt="闖關結業證明，${esc(S.name || '學員')}，總分 ${totalScore()} 分"></div>
+    <div class="cert"><img src="${certUrl}" alt="闖關結業證明，${esc(S.name || '學員')}，總分 ${totalScore()} 分"></div>
+    ${touch ? '<p class="small">存不下來的話，長按上方圖片，選「加入照片」或「儲存影像」。</p>' : ''}
     <div class="field"><label for="certName">證明上的名字</label><input id="certName" maxlength="20" value="${esc(S.name)}" placeholder="輸入你的名字"></div>
-    <div class="row"><a class="btn primary" id="dl" download="安全衛生闖關結業證明.png" href="${url}" data-focus>下載證明圖片</a><button class="btn" id="redraw">更新名字</button><button class="btn" id="close">關閉</button></div>`;
-  $('#dl').style.textDecoration = 'none';
+    <div class="row"><button class="btn primary" id="dl" data-focus>${share ? '儲存證明圖片' : '下載證明圖片'}</button><button class="btn" id="redraw">更新名字</button><button class="btn" id="close">關閉</button></div>`;
+  $('#dl').onclick = () => {
+    if (share) { navigator.share({ files: [file], title: '安全衛生闖關結業證明' }).catch(() => {}); return; }
+    const a = document.createElement('a'); a.href = certUrl; a.download = fname;
+    a.rel = 'noopener'; a.style.display = 'none';
+    document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 1000);
+  };
   $('#redraw').onclick = () => { S.name = $('#certName').value.trim(); save(); showCert(); };
   $('#close').onclick = () => { closeDialog(); canvas.focus({ preventScroll: true }); };
 }
