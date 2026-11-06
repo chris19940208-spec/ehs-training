@@ -99,6 +99,7 @@ kbd{font:700 12px/1 var(--mono);border:1px solid currentColor;border-radius:5px;
 #controls{grid-column:1;grid-row:3;justify-self:start;align-self:end;display:flex;gap:6px;padding:4px;background:var(--surface);
   border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
 #controls .btn{border:0;background:none;padding:10px 12px;font-size:15px}
+#controls .sm{display:none}
 #pad{grid-column:1;grid-row:3;justify-self:end;align-self:end;display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(2,54px);gap:6px}
 #pad button{border-radius:12px;font:700 18px/1 var(--mono);padding:0;touch-action:none;user-select:none;-webkit-user-select:none;background:var(--surface);box-shadow:var(--shadow)}
 #pad .up{grid-column:2;grid-row:1}#pad .left{grid-column:1;grid-row:2}#pad .down{grid-column:2;grid-row:2}#pad .right{grid-column:3;grid-row:2}
@@ -184,31 +185,79 @@ kbd{font:700 12px/1 var(--mono);border:1px solid currentColor;border-radius:5px;
 .cert img{width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}
 .small{font:400 14px/1.6 var(--sans);color:var(--muted)}
 
+/* 手機：上方一條標題列、下方一條任務列，中間留給 3D 場景 */
 @media (max-width:760px){
-  #ui{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto;gap:10px;padding-block:12px}
-  .brand{padding:8px 12px;gap:10px;justify-self:stretch}
-  .brand img{height:20px}
-  .brand h1{font-size:17px}
+  #ui{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto minmax(0,1fr) auto auto;gap:6px;padding-block:8px;
+    padding-left:max(8px, env(safe-area-inset-left, 0px));padding-right:max(8px, env(safe-area-inset-right, 0px))}
+  .brand{grid-column:1;grid-row:1;padding:5px 10px;gap:8px;border-radius:10px;box-shadow:none}
+  .brand img{height:14px}
+  .brand h1{font-size:14px;margin:0}
   .brand .eyebrow{display:none}
-  .score b{font-size:17px}
-  #panel{grid-column:1;grid-row:4;gap:8px}
-  .card{padding:14px;gap:8px;border-radius:14px}
-  .card h2{font-size:20px}
-  .card p{font-size:15px;line-height:1.6}
-  #list{flex-direction:row;padding:6px;overflow-x:auto;overflow-y:hidden;border-radius:12px;order:-1}
-  #list li{flex:0 0 auto}
-  #list button{padding:8px 10px;font-size:14px;white-space:nowrap}
-  #list .st{margin-left:4px}
-  #controls{grid-row:3}
-  #controls .btn{padding:10px;font-size:14px}
-  #hint{grid-row:2;font-size:14px}
-  #pad{grid-row:3}
-  .dialog{padding:20px;gap:14px;border-radius:16px}
-  .dialog h2{font-size:24px}
-  .dialog p{font-size:16px}
-  .opt{font-size:16px;padding:12px 14px}
-  .match{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
-  .press{width:140px;height:140px}
+  .score{padding-left:8px;flex-direction:row;align-items:baseline;gap:3px}
+  .score b{font-size:14px}
+  .score .eyebrow{display:inline;font-size:11px;letter-spacing:0}
+  #controls{grid-column:2;grid-row:1;align-self:start;padding:2px;gap:0;border-radius:10px;box-shadow:none}
+  #controls .btn{padding:6px 8px;font-size:13px}
+  #controls .lg{display:none} #controls .sm{display:inline}
+  .brand h1{white-space:nowrap}
+  #hint{grid-column:1 / -1;grid-row:2;font-size:12px;line-height:1.45;padding:5px 10px;border-radius:8px;box-shadow:none;max-width:100%}
+  #pad{grid-column:1 / -1;grid-row:4;justify-self:end;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(2,42px);gap:4px}
+  #pad button{font-size:14px;border-radius:10px;opacity:.88;box-shadow:none}
+  #panel{grid-column:1 / -1;grid-row:5;gap:6px}
+  #list{display:none}
+  .card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px 8px;padding:8px 10px;border-radius:12px;box-shadow:none}
+  .card .eyebrow,.card p,.card .near{display:none}
+  .card h2{grid-column:1;grid-row:1;font-size:15px;font-weight:700;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .row{grid-column:2;grid-row:1;flex-wrap:nowrap;gap:6px}
+  .card .row .btn{padding:7px 10px;font-size:13px;border-radius:8px}
+  .card .meter{grid-column:1 / -1;grid-row:2;height:3px}
+  .tag .lbl{font-size:11px;padding:2px 8px}
+  .tag .lbl b{font-size:10px;margin-right:4px}
+  .tag .stem{height:10px}
+  #toast{padding:8px 12px;border-radius:10px;bottom:calc(env(safe-area-inset-bottom, 0px) + 70px)}
+  #toast b{font-size:13px} #toast span{font-size:12px;line-height:1.5}
+  .overlay{padding:10px;padding-left:max(10px, env(safe-area-inset-left, 0px));padding-right:max(10px, env(safe-area-inset-right, 0px))}
+  .dialog{padding:16px;gap:10px;border-radius:14px}
+  .dialog h2{font-size:19px}
+  .dialog h3{font-size:16px;line-height:1.45}
+  .dialog p{font-size:14px;line-height:1.65}
+  .eyebrow{font-size:11px}
+  .small{font-size:12px}
+  .dots i{width:20px;height:4px}
+  .opts{gap:6px}
+  .opt{font-size:14px;padding:9px 12px;border-radius:10px;gap:8px}
+  .fb{padding:10px 12px;font-size:13px;line-height:1.6;border-radius:10px}
+  .fb b{font-size:14px}
+  .fb .list b{font-size:13px}
+  .btn{font-size:14px;padding:9px 13px}
+  .chips{gap:6px}
+  .chip{font-size:13px;padding:7px 10px;border-radius:8px}
+  .seq{padding:8px;gap:4px;min-height:40px}
+  .seq li button{font-size:13px;padding:6px 10px}
+  .match{gap:6px} .match .col{gap:6px}
+  .rhythm{gap:8px;padding:0}
+  .press{width:104px;height:104px;font-size:18px}
+  .gauge{height:28px}
+  .bpm{font-size:22px}
+  .stars{font-size:24px}
+  .result{gap:6px} .result div{padding:8px} .result b{font-size:18px} .result span{font-size:11px}
+  .field input{font-size:16px;padding:9px 12px}
+  .keys{font-size:13px;gap:4px 10px}
+  .keys span:nth-child(odd){font-size:11px}
+}
+/* 手機橫放：右側窄面板 */
+@media (min-width:761px) and (max-height:500px){
+  #ui{grid-template-columns:minmax(0,1fr) 230px;gap:8px;padding-block:8px}
+  .brand{padding:5px 10px;gap:8px}
+  .brand img{height:14px} .brand h1{font-size:14px;margin:0} .brand .eyebrow{display:none} .score b{font-size:14px}
+  .card{padding:10px;gap:6px} .card .eyebrow{font-size:11px} .card h2{font-size:16px} .card p{display:none}
+  .card .btn{padding:7px 10px;font-size:13px}
+  #list{padding:4px} #list button{padding:5px 8px;font-size:12px}
+  #hint{font-size:12px;padding:5px 10px}
+  #controls .btn{padding:6px 8px;font-size:12px}
+  #pad{grid-template-columns:repeat(3,40px);grid-template-rows:repeat(2,40px);gap:4px}
+  .dialog{padding:14px;gap:8px} .dialog h2{font-size:18px} .dialog h3{font-size:15px} .dialog p{font-size:13px}
+  .opt{font-size:13px;padding:7px 10px} .press{width:90px;height:90px;font-size:16px}
 }
 @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
 </style>
@@ -246,8 +295,8 @@ kbd{font:700 12px/1 var(--mono);border:1px solid currentColor;border-radius:5px;
     </aside>
     <div id="hint"></div>
     <div id="controls" role="group" aria-label="設定">
-      <button class="btn" id="btnHelp" type="button">操作說明</button>
-      <button class="btn" id="btnReset" type="button">重新開始</button>
+      <button class="btn" id="btnHelp" type="button"><span class="lg">操作說明</span><span class="sm">說明</span></button>
+      <button class="btn" id="btnReset" type="button"><span class="lg">重新開始</span><span class="sm">重來</span></button>
     </div>
     <div id="pad" hidden>
       <button class="btn up" data-k="f" type="button" aria-label="前進">▲</button>

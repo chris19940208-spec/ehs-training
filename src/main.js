@@ -317,11 +317,8 @@ LEVELS.forEach((lv, i) => {
   li.firstChild.addEventListener('click', () => { if (i <= S.idx) { closeDialog(); walkTo(lv); canvas.focus({ preventScroll: true }); } });
   list.appendChild(li);
 });
-function renderPanel() {
-  const done = Object.keys(S.scores).length, all = S.idx >= LEVELS.length;
-  const lv = cur();
-  $('#score').textContent = totalScore();
-  $('#prog').style.width = (Math.min(done, LEVELS.length) / LEVELS.length * 100) + '%';
+function renderPanelText() {
+  const all = S.idx >= LEVELS.length, lv = cur();
   if (all) {
     $('#stageEn').textContent = 'Complete';
     $('#stageTitle').textContent = '全部過關';
@@ -333,6 +330,12 @@ function renderPanel() {
     $('#stageDesc').textContent = `前往「${lv.station}」，站上藍色光圈開始關卡。`;
     $('#goStage').textContent = '自動前往';
   }
+}
+function renderPanel() {
+  const done = Object.keys(S.scores).length;
+  $('#score').textContent = totalScore();
+  $('#prog').style.width = (Math.min(done, LEVELS.length) / LEVELS.length * 100) + '%';
+  renderPanelText(); wasReplay = false;
   [...list.children].forEach((li, i) => {
     const b = li.firstChild, sc = S.scores[LEVELS[i].id];
     b.disabled = i > S.idx;
@@ -363,10 +366,17 @@ function nearLevel() {
   }
   return best;
 }
-let wasNear = null;
+let wasNear = null, wasReplay = false;
 function updateNear() {
   const n = hunt ? null : nearLevel(), all = S.idx >= LEVELS.length;
   const replay = n && S.scores[n.id] && LEVELS.indexOf(n) !== S.idx;
+  if (replay && n !== wasNear) {
+    $('#stageEn').textContent = `Stage ${pad2(n.id)} / ${n.en} · 已過關`;
+    $('#stageTitle').textContent = n.name;
+    $('#stageDesc').textContent = `你在「${n.station}」，可以重玩本關刷新分數，或前往下一站。`;
+    $('#goStage').textContent = all ? '結業證明' : '前往下一站';
+  } else if (!replay && wasReplay) renderPanelText();
+  wasReplay = !!replay;
   $('#near').classList.toggle('on', !!n && !touch);
   if (n) $('#near span').textContent = `已抵達「${n.station}」，${replay ? '重玩本關' : '開始關卡'}`;
   $('#startStage').disabled = !!hunt || !(n || all);
@@ -375,8 +385,13 @@ function updateNear() {
   if (!n && wasNear && !hunt) setHint(defaultHint());
   wasNear = n;
 }
-const defaultHint = () => touch ? '拖曳畫面看四周，用方向鍵移動；也可以按「自動前往」' : '拖曳畫面看四周，<b>W A S D</b> 移動，<b>← →</b> 轉向；也可以按「自動前往」';
-function setHint(html, cls = '') { const h = $('#hint'); h.innerHTML = html; h.className = cls; h.hidden = !html; }
+const defaultHint = () => touch ? '拖曳看四周、方向鍵移動，或按「自動前往」' : '拖曳畫面看四周，<b>W A S D</b> 移動，<b>← →</b> 轉向；也可以按「自動前往」';
+let hintTimer = null;
+function setHint(html, cls = '') {
+  const h = $('#hint'); h.innerHTML = html; h.className = cls; h.hidden = !html;
+  clearTimeout(hintTimer);                       // 手機畫面小，一般提示幾秒後自動收起；找危害時保留
+  if (html && cls !== 'hunt' && matchMedia('(max-width:760px), (max-height:500px)').matches) hintTimer = setTimeout(() => { h.hidden = true; }, 4500);
+}
 $('#startStage').addEventListener('click', () => { const n = nearLevel(); if (hunt) return; if (n) openStage(n); else if (S.idx >= LEVELS.length) showCert(); });
 $('#goStage').addEventListener('click', () => { if (S.idx >= LEVELS.length) { showCert(); return; } walkTo(cur()); canvas.focus({ preventScroll: true }); });
 
@@ -705,7 +720,11 @@ function showStart(ready) {
 }
 function placeAtStart() {
   const lv = S.idx > 0 && S.idx <= LEVELS.length ? LEVELS[S.idx - 1] : null;
-  if (lv) { camera.position.copy(V([lv.beacon[0], lv.beacon[1], EYE])); const nx = LEVELS[S.idx]; lookAt(nx ? [nx.beacon[0], nx.beacon[1], 1.2] : lv.look); }
+  if (lv) {
+    const nx = LEVELS[S.idx], from = V([lv.beacon[0], lv.beacon[1], EYE]);
+    if (nx) { const to = V([nx.beacon[0], nx.beacon[1], EYE]), d = to.clone().sub(from); from.add(d.setLength(Math.min(1.7, d.length()))); }
+    camera.position.copy(from); lookAt(nx ? [nx.beacon[0], nx.beacon[1], 1.2] : lv.look);
+  }
   else { camera.position.copy(V([START.pos[0], START.pos[1], EYE])); lookAt(START.look); }
   if (S.idx > 1) clearHazards(); else resetHazards();
 }
