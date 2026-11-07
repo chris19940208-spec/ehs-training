@@ -22,7 +22,7 @@ const EYE = 1.6;
    進度（存在瀏覽器）
    ============================================================ */
 const KEY = 'dnn-safety-quest-v1';
-const fresh = () => ({ name: '', empId: '', idx: 0, scores: {}, pos: null, pending: null });
+const fresh = () => ({ name: '', empId: '', idx: 0, scores: {}, pos: null, pending: null, reported: false });
 let S = fresh();
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(fresh(), JSON.parse(raw)); } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
@@ -31,16 +31,17 @@ async function sendPending() {
   if (!SCORE_ENDPOINT || !S.pending) return 'off';
   try {
     await fetch(SCORE_ENDPOINT, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(S.pending) });
-    S.pending = null; save(); return 'sent';
+    S.pending = null; S.reported = true; save(); return 'sent';
   } catch (e) { return 'queued'; }               // 離線時留著，下次開啟再送
 }
-function queueResult() {
+function queueResult(backfill = false) {
   if (!SCORE_ENDPOINT) return;
   const stages = {}; for (const lv of LEVELS) if (S.scores[lv.id]) stages[lv.id] = S.scores[lv.id].score;
   const d = new Date(), off = -d.getTimezoneOffset(), sg = off >= 0 ? '+' : '-';
   const local = new Date(d.getTime() + off * 60000).toISOString().slice(0, 19) + sg + pad2(Math.floor(Math.abs(off) / 60)) + ':' + pad2(Math.abs(off) % 60);
   S.pending = { name: S.name, empId: S.empId, total: totalScore(), max: totalMax(),
-    stars: Object.values(S.scores).reduce((a, s) => a + s.stars, 0), stages, device: touch ? '手機' : '電腦', finishedAt: local };
+    stars: Object.values(S.scores).reduce((a, s) => a + s.stars, 0), stages, device: touch ? '手機' : '電腦',
+    finishedAt: backfill ? `補登 ${local}` : local };
   save();
 }
 const hasProgress = () => S.idx > 0 || Object.keys(S.scores).length > 0;
@@ -743,7 +744,7 @@ function showStart(ready) {
     <p>在 3F 展示間裡走一圈，跟著藍色光圈走到 9 個站點，闖過法規、找危害、消防、急救等關卡。最後通過結業測驗，就能領取結業證明。</p>
     ${ready ? `<div class="field"><label for="nm">你的名字（${SCORE_ENDPOINT ? '必填，' : ''}會印在結業證明上）</label><input id="nm" maxlength="20" value="${esc(S.name)}" placeholder="例如：王小明"></div>
     ${SCORE_ENDPOINT ? `<div class="field"><label for="emp">工號（選填）</label><input id="emp" maxlength="20" value="${esc(S.empId)}" placeholder="例如：DTW0001" autocapitalize="characters"></div>
-    <p class="small">通過結業測驗後，名字、工號與各關分數會回傳給公司做訓練紀錄。</p>` : ''}
+    <p class="small">${S.idx >= LEVELS.length && !S.reported ? '你已經完成闖關，按下方按鈕後會把成績補送給公司做訓練紀錄。' : '通過結業測驗後，名字、工號與各關分數會回傳給公司做訓練紀錄。'}</p>` : ''}
     ${helpHtml()}
     <div class="row">${cont ? `<button class="btn primary" id="cont" data-focus>繼續闖關（第 ${Math.min(S.idx + 1, 9)} 關）</button><button class="btn" id="new">從頭開始</button>` : '<button class="btn primary" id="new" data-focus>開始闖關</button>'}</div>`
       : `<div class="load"><div class="meter"><i id="bar"></i></div><div class="msg" id="loadMsg">正在載入展示間模型…</div></div>`}`);
@@ -753,6 +754,10 @@ function showStart(ready) {
     if (SCORE_ENDPOINT && !nm) { $('#nm').focus(); $('#nm').setAttribute('aria-invalid', 'true'); $('#nm').placeholder = '請先輸入名字'; return; }
     if (reset) { S = fresh(); }
     S.name = nm; S.empId = emp;
+    if (SCORE_ENDPOINT && S.idx >= LEVELS.length && !S.reported && !S.pending) {   // 回傳功能上線前就過關的人，補送成績
+      queueResult(true);
+      sendPending().then(r => { if (r === 'sent') toast('成績已補送', '你的闖關成績已回傳公司訓練紀錄。'); });
+    }
     save(); $('#ui').hidden = false; resize(); placeAtStart(); renderPanel(); closeDialog();
     setHint(defaultHint()); canvas.focus({ preventScroll: true });
   };
